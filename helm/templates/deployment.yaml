@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fullname" . }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $.Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 9200
+              protocol: TCP
+          env:
+            - name: server.port
+              value: "9200"
+            - name: spring.datasource.url
+              value: "jdbc:postgresql://{{.Values.service.database.hostname}}:{{.Values.service.database.port}}/{{.Values.service.database.database}}"
+            - name: spring.datasource.username
+              value: {{ .Values.service.database.username }}
+      {{- range $index, $entry := .Values.env }}
+            - name: {{ $entry.key | quote}}
+              value: {{ $entry.value | quote }}
+      {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "name" $ }}-auth
+---
